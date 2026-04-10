@@ -204,9 +204,9 @@ with the following content:
 ```bash
 token: yourownsecuritytoken
 tls-san:
- - ha-proxy-ip
- - server-mastername
- - server-masterip
+ - keepalived-proxy-ip
+ - keepalived-proxy-name
+
 ```
 ### 3. For kubectl to work for this cluster (ex: kubectl get nodes), you need to copy rke2.yaml file into .kube folder in the `/root` directory.
 ```bash
@@ -226,8 +226,8 @@ server: https://keepalived-ip:9345
 token: yourownsecuritytoken
 tls-san:
   - keepalived-proxy-ip
-  - haproxy-ip
-  - haproxy-hostname
+  - keepalived-proxy-name
+
 ```
 ### 6. Start RKE2 on other master nodes
 ```bash
@@ -258,6 +258,9 @@ curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE=agent sudo sh -
 dnf install rke2-agent
 ```
 ### 2. Configure the worker node
+
+#Same steps as step 2 for master node, the contents of the /etc/rancher/rke2/config.yaml file should be the same as other master nodes (Not the first master node).
+
 Create a file `/etc/rancher/rke2/config.yaml`
 ```bash
 vim /etc/rancher/rke2/config.yaml
@@ -268,9 +271,48 @@ server: https://keepalived-ip:9345
 token: yourownsecuritytoken
 tls-san:
   - keepalived-proxy-ip
-  - haproxy-ip
-  - haproxy-hostname
+  - keepalived-proxy-name
 ```
+
+### 3. Start RKE2 on other master nodes
+```bash
+systemctl enable rke2-agent
+systemctl start rke2-agent
+```
+
+# c. Rancher (a web UI for managing Kubernetes clusters) Installation Steps
+
+### 1. Choose one of the haproxy node that have helm installed to run all the commands in this sections
+### 2. Add Rancher Helm repository by executing these commmand
+```bash
+helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
+helm repo update
+```
+### 3. Create cattle-system namespace
+```bash
+kubectl create namespace cattle-system
+```
+### 4. Install cert-manager (required for rancher)
+```bash
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.3/cert-manager.crds.yaml
+
+helm repo update
+
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --version v1.13.3
+```
+### 5. Install rancher using self-signed certificates
+```bash
+helm install rancher rancher-stable/rancher \
+  --namespace cattle-system \
+  --set hostname=rancher.um.edu.my \
+  --set bootstrapPassword=admin \
+  --set ingress.tls.source=rancher
+```
+### 6. Access rancher web `https://rancher.um.edu.my`. Set host file pointing to the keepalived ip (vip) to the rancher hostname you set in step 5.
+
 
 
 
