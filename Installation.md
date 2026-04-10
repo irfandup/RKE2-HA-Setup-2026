@@ -128,6 +128,69 @@ For RHEL:
 dnf install keepalived
 ```
 ## 6. Create `/etc/keepalived/keepalived.conf` with the following configuration:
+
 ```bash
+vim /etc/keepalived/keepalived.conf
+```
+HAProxy #1 – MASTER
+
+Contents of `/etc/keepalived/keepalived.conf` for master:
+```bash
+vrrp_instance VI_1 {
+    state MASTER
+    interface ens160            # network interface based on your server
+    virtual_router_id 51
+    priority 200              # higher = master
+    advert_int 1
+
+    authentication {
+        auth_type PASS
+        auth_pass 12345
+    }
+
+    virtual_ipaddress {
+        10.240.5.164
+    }
+
+```
+
+HAProxy #2 – BACKUP
+
+Contents of `/etc/keepalived/keepalived.conf` for backup:
+```bash
+vrrp_instance VI_1 {
+    state BACKUP
+    interface ens160            # network interface based on your server
+    virtual_router_id 51
+    priority 150              # lower = backup
+    advert_int 1
+
+    authentication {
+        auth_type PASS
+        auth_pass 12345
+    }
+
+    virtual_ipaddress {
+        10.240.5.164
+    }
+}
+```
+## 7. Enable and start Keepalived on both haproxy server:
+```bash
+systemctl start keepalived
+systemctl enable keepalived
+```
+Check status of the keepalive on the haproxy master node, it will have two ip on its network interface:
+```bash
+ip addr
+```
+
+
+
+
+
+
+
+
 
 
