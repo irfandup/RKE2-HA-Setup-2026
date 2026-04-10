@@ -1,15 +1,15 @@
-# Installation Guide
+# Installation Guide 
 
-## 1. HAProxy & Keepalived Setup
+# a. HAProxy & Keepalived Setup
 Perform these steps on both HAProxy nodes
 
-### HAProxy Installation
+## HAProxy Installation
 ```bash
 # For Ubuntu
 sudo apt update && sudo apt install haproxy -y
 ```
 
-## 2. Create `/etc/haproxy/haproxy.cfg` with the following configuration:
+### 1. Create `/etc/haproxy/haproxy.cfg` with the following configuration:
 ```bash
 vim /etc/haproxy/haproxy.cfg
 ```
@@ -109,17 +109,17 @@ listen stats
     stats uri /stats
     stats refresh 30s
 ```
-## 3. Enable and start HAProxy
+### 2. Enable and start HAProxy
 ```bash
 systemctl enable haproxy
 syatemctl start haproxy
 ```
 
-## 4. Verify HAProxy status:
+### 3. Verify HAProxy status:
 ```bash
 systemctl status haproxy
 ```
-## 5. Install keepalived on both HAProxy node
+### 4. Install keepalived on both HAProxy node
 ```bash
 For Ubuntu:
 apt-get install keepalived
@@ -127,7 +127,7 @@ apt-get install keepalived
 For RHEL:
 dnf install keepalived
 ```
-## 6. Create `/etc/keepalived/keepalived.conf` with the following configuration:
+### 5. Create `/etc/keepalived/keepalived.conf` with the following configuration:
 
 ```bash
 vim /etc/keepalived/keepalived.conf
@@ -175,7 +175,7 @@ vrrp_instance VI_1 {
     }
 }
 ```
-## 7. Enable and start Keepalived on both haproxy server:
+### 6. Enable and start Keepalived on both haproxy server:
 ```bash
 systemctl start keepalived
 systemctl enable keepalived
@@ -184,6 +184,97 @@ Check status of the keepalive on the haproxy master node, it will have two ip on
 ```bash
 ip addr
 ```
+
+# b. RKE2 Installation on Master and Worker Node
+
+(This guide is for Rocky Linux Operating System)
+
+# For Master Node:
+
+### 1. Install RKE2 on master
+```bash
+curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE=server sudo sh -
+```
+### 2. Configure the first master node
+Create a file `/etc/rancher/rke2/config.yaml`
+```bash
+vim /etc/rancher/rke2/config.yaml
+```
+with the following content:
+```bash
+token: yourownsecuritytoken
+tls-san:
+ - ha-proxy-ip
+ - server-mastername
+ - server-masterip
+```
+### 3. For kubectl to work for this cluster (ex: kubectl get nodes), you need to copy rke2.yaml file into .kube folder in the `/root` directory.
+```bash
+cd /root
+mkdir .kube
+cp /etc/rancher/rke2/rke2.yaml .kube/config
+```
+### 4. Start RKE2 on the first master node
+```bash
+systemctl enable rke2-server
+systemctl start rke2-server
+```
+### 5. For other master nodes,follow steps 1 and 2. But the content of the /etc/rancher/rke2/config.yaml is a little bit different. The security token must be the same as the first master node.
+Contents of the `etc/rancher/rke2/rke2.yaml` file for worker node:
+```bash
+server: https://keepalived-ip:9345
+token: yourownsecuritytoken
+tls-san:
+  - keepalived-proxy-ip
+  - haproxy-ip
+  - haproxy-hostname
+```
+### 6. Start RKE2 on other master nodes
+```bash
+systemctl enable rke2-server
+systemctl start rke2-serve
+```
+### 7. List Cluster Nodes to check the status of the cluster
+You can use kubectl on the first master nodes since we created .kube there. All the other nodes (including haproxy nodes) can also have this capability which you just need to do the same step 3 for all the nodes. As for the haproxy nodes, you must get the file from one of the master node.
+
+```bash
+#list all nodes
+kubectl get nodes
+
+#list all pods in all namespace
+Kubectl get pods -A
+```
+### 8. Usually we don't allow the master nodes to run the workload. The command below will taint the master node to not run any app workload.
+Execute this command for all master node on a master node that have kubectl tool:
+```bash
+kubectl taint nodes <node-name> node-role.kubernetes.io/control-plane=:NoSchedule --overwrite
+```
+
+# For Worker Nodes:
+
+### 1. Install RKE2 on worker
+```bash
+curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE=agent sudo sh -
+dnf install rke2-agent
+```
+### 2. Configure the worker node
+Create a file `/etc/rancher/rke2/config.yaml`
+```bash
+vim /etc/rancher/rke2/config.yaml
+```
+with the following content:
+```bash
+server: https://keepalived-ip:9345
+token: yourownsecuritytoken
+tls-san:
+  - keepalived-proxy-ip
+  - haproxy-ip
+  - haproxy-hostname
+```
+
+
+
+
 
 
 
