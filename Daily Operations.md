@@ -55,3 +55,16 @@ kubectl get deployments -A
 ```
 ## Pods Scaling
 Scaling is done automatically using horizontal pod autoscalers which are set by the developers in their pipeline. The treshold to scale can be set accordingly.
+
+## Adding and Removing Nodes
+
+## For Master Node
+
+### Adding master node
+#### 1. Install RKE2:
+```bash
+curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE=server sudo sh -
+```
+
+
+
